@@ -1,0 +1,157 @@
+
+---
+
+### **3. FULL CODE - App.tsx**
+```tsx
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+type Player = 'X' | 'O' | null;
+const WIN_COMBOS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+export default function TicTacDubai() {
+  const [board, setBoard] = useState<Player[]>(Array(9).fill(null));
+  const [isXNext, setIsXNext] = useState(true);
+  const [vsAI, setVsAI] = useState(true);
+  const [score, setScore] = useState({ X: 0, O: 0, Draw: 0 });
+  const [winner, setWinner] = useState<Player | 'Draw' | null>(null);
+  const [dubaiStreak, setDubaiStreak] = useState(0);
+
+  const checkWinner = (b: Player[]) => {
+    for (let [a, b1, c] of WIN_COMBOS) {
+      if (b[a] && b[a] === b[b1] && b[a] === b[c]) return b[a];
+    }
+    return b.every(cell => cell)? 'Draw' : null;
+  };
+
+  const minimax = (b: Player[], depth: number, isMax: boolean): number => {
+    const res = checkWinner(b);
+    if (res === 'O') return 10 - depth;
+    if (res === 'X') return depth - 10;
+    if (res === 'Draw') return 0;
+
+    if (isMax) {
+      let best = -Infinity;
+      for (let i = 0; i < 9; i++) {
+        if (!b[i]) {
+          b[i] = 'O';
+          best = Math.max(best, minimax(b, depth + 1, false));
+          b[i] = null;
+        }
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for (let i = 0; i < 9; i++) {
+        if (!b[i]) {
+          b[i] = 'X';
+          best = Math.min(best, minimax(b, depth + 1, true));
+          b[i] = null;
+        }
+      }
+      return best;
+    }
+  };
+
+  const aiMove = () => {
+    let bestScore = -Infinity, move = -1;
+    for (let i = 0; i < 9; i++) {
+      if (!board[i]) {
+        board[i] = 'O';
+        let score = minimax(board, 0, false);
+        board[i] = null;
+        if (score > bestScore) {
+          bestScore = score;
+          move = i;
+        }
+      }
+    }
+    return move;
+  };
+
+  const handleClick = (idx: number) => {
+    if (board[idx] || winner) return;
+    const newBoard = [...board];
+    newBoard[idx] = isXNext? 'X' : 'O';
+    setBoard(newBoard);
+    setIsXNext(!isXNext);
+  };
+
+  useEffect(() => {
+    const w = checkWinner(board);
+    if (w) {
+      setWinner(w);
+      if (w === 'X') {
+        setScore(s => ({...s, X: s.X + 1}));
+        setDubaiStreak(d => d + 1);
+      } else if (w === 'O') {
+        setScore(s => ({...s, O: s.O + 1}));
+        setDubaiStreak(0);
+      } else {
+        setScore(s => ({...s, Draw: s.Draw + 1}));
+      }
+    } else if (!isXNext && vsAI) {
+      setTimeout(() => {
+        const move = aiMove();
+        if (move!== -1) handleClick(move);
+      }, 300);
+    }
+  }, [board, isXNext]);
+
+  const reset = () => {
+    setBoard(Array(9).fill(null));
+    setIsXNext(true);
+    setWinner(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4">
+      <h1 className="text-5xl font-bold mb-2">🎮 Tic-Tac-Dubai</h1>
+      <p className="text-gray-400 mb-6">Day 25/100. Win = Dubai ticket ✈️</p>
+
+      <div className="flex gap-4 mb-6">
+        <button onClick={() => {setVsAI(true); reset();}}
+          className={`px-4 py-2 rounded ${vsAI? 'bg-green-600' : 'bg-gray-800'}`}>
+          Vs AI 🤖
+        </button>
+        <button onClick={() => {setVsAI(false); reset();}}
+          className={`px-4 py-2 rounded ${!vsAI? 'bg-green-600' : 'bg-gray-800'}`}>
+          Vs Friend 👥
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 mb-6">
+        {board.map((cell, idx) => (
+          <motion.button key={idx} whileTap={{ scale: 0.9 }}
+            onClick={() => handleClick(idx)}
+            className="w-20 h-20 md:w-24 md:h-24 bg-gray-900 rounded-xl text-4xl font-bold border border-gray-700">
+            {cell}
+          </motion.button>
+        ))}
+      </div>
+
+      <div className="text-center mb-4">
+        <p>You {score.X} - {score.O} AI | Draw {score.Draw}</p>
+        <p className="text-yellow-400">Dubai Streak: {dubaiStreak}/3 ✈️</p>
+      </div>
+
+      <AnimatePresence>
+        {winner && (
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+            className="bg-gray-900 p-6 rounded-xl text-center">
+            {winner === 'Draw'? <p>Draw! Dubai is far 😭</p> :
+             winner === 'X'? <p className="text-green-500">
+               You Won! {dubaiStreak >= 3? 'Dubai Ticket Unlocked 🇦🇪✈️' : 'Dubai closer...'}
+             </p> :
+             <p className="text-red-500">AI Won! Dubai is far for you 😭</p>}
+            <button onClick={reset} className="mt-4 bg-green-600 px-6 py-2 rounded-lg">
+              Play Again
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <p className="text-gray-500 mt-8 text-sm">August 2027. See you at DXB 🇦🇪 | Rukna mana hai</p>
+    </div>
+  );
+}
